@@ -250,9 +250,9 @@ public sealed class ZadaniaLinq
                 zapis => zapis.PrzedmiotId,
                 przedmiot => przedmiot.Id,
                 (zapis, przedmiot) => przedmiot.Nazwa
-                )
+            )
             .GroupBy(nazwa => nazwa)
-            .Select(grupa => $"{grupa.Key} | Liczba zapisow: {grupa.Count()}")
+            .Select(grupa => $"{grupa.Key} | Liczba zapisow: {grupa.Count()}");
     }
 
     /// <summary>
@@ -397,9 +397,29 @@ public sealed class ZadaniaLinq
     /// </summary>
     public IEnumerable<string> Wyzwanie03_ProwadzacyISredniaOcenNaIchPrzedmiotach()
     {
-        throw Niezaimplementowano(nameof(Wyzwanie03_ProwadzacyISredniaOcenNaIchPrzedmiotach));
-    }
+        return DaneUczelni.Prowadzacy
+            .GroupJoin(
+                DaneUczelni.Przedmioty,
+                prowadzacy => prowadzacy.Id,
+                przedmiot => przedmiot.ProwadzacyId,
+                (prowadzacy, przedmioty) => new { prowadzacy, przedmioty }
+            )
+            .Select(x =>
+            {
+                var oceny = x.przedmioty
+                    .Join(
+                        DaneUczelni.Zapisy.Where(z => z.OcenaKoncowa != null),
+                        przedmiot => przedmiot.Id,
+                        zapis => zapis.PrzedmiotId,
+                        (przedmiot, zapis) => zapis.OcenaKoncowa!.Value
+                    )
+                    .ToList();
 
+                var srednia = oceny.Any() ? oceny.Average().ToString("0.00") : "Brak ocen";
+
+                return $"{x.prowadzacy.Imie} {x.prowadzacy.Nazwisko} | Średnia ocen: {srednia}";
+            });
+    }
     /// <summary>
     /// Wyzwanie:
     /// Pokaż miasta studentów oraz liczbę aktywnych zapisów wykonanych przez studentów z danego miasta.
@@ -415,9 +435,17 @@ public sealed class ZadaniaLinq
     /// </summary>
     public IEnumerable<string> Wyzwanie04_MiastaILiczbaAktywnychZapisow()
     {
-        throw Niezaimplementowano(nameof(Wyzwanie04_MiastaILiczbaAktywnychZapisow));
+        return DaneUczelni.Studenci
+            .Join(
+                DaneUczelni.Zapisy.Where(z => z.CzyAktywny),
+                student => student.Id,
+                zapis => zapis.StudentId,
+                (student, zapis) => student.Miasto
+            )
+            .GroupBy(miasto => miasto)
+            .OrderByDescending(grupa => grupa.Count())
+            .Select(grupa => $"{grupa.Key} | Liczba aktywnych zapisów: {grupa.Count()}");
     }
-
     private static NotImplementedException Niezaimplementowano(string nazwaMetody)
     {
         return new NotImplementedException(
